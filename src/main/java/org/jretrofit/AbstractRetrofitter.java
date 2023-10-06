@@ -97,18 +97,22 @@ abstract class AbstractRetrofitter implements Retrofitter {
                 interfacesToImplement);
         List<Throwable> exceptions = new ArrayList<Throwable>();
         for (int i = 0; i < candidateClassLoaders.length; i++) {
-            try {
-                return Proxy
-                        .newProxyInstance(candidateClassLoaders[i],
-                                allInterfacesToImplement(target,
-                                        interfacesToImplement),
-                                new RetrofitInvocationHandler(
-                                        methodLookupHelper));
-            } catch (IllegalArgumentException e) {
-                // The classloader used cannot load all the required classes,
-                // store the exception and try the next one...
-                exceptions.add(e);
-            }
+            // fix for JDK-830791 implementations in u11,u17, and main
+            // that ignores that ClassLoaders are null when from bootsrtrap
+            if (candidateClassLoaders[i] != null) { 
+                try {
+                    return Proxy
+                            .newProxyInstance(candidateClassLoaders[i],
+                                    allInterfacesToImplement(target,
+                                            interfacesToImplement),
+                                    new RetrofitInvocationHandler(
+                                            methodLookupHelper));
+                } catch (IllegalArgumentException e) {
+                    // The classloader used cannot load all the required classes,
+                    // store the exception and try the next one...
+                    exceptions.add(e);
+                }
+            } // if cCL not null
         }
         // Classloaders exhausted... throw an exception.
         throw new RuntimeException(
